@@ -1273,9 +1273,17 @@ if debug:
 if args.read == '-':
     if debug:
       print( 'CTD: Reading from stdin ...' )
-    for line in sys.stdin:
-        #print( f'line: {line.rstrip()}')
-        prettify_tcpdump_line_so_it_looks_nice( line.rstrip())
+    try:
+        for line in sys.stdin:
+            #print( f'line: {line.rstrip()}')
+            prettify_tcpdump_line_so_it_looks_nice( line.rstrip())
+    except KeyboardInterrupt:
+        # Ctrl+C: tcpdump already printed its capture summary on the way out.
+        # Exit silently with the conventional 130 (128 + SIGINT).
+        sys.exit(130)
+    except BrokenPipeError:
+        # Downstream closed (e.g. piped to `head`). Exit quietly.
+        sys.exit(0)
     exit(0)
 else:
   # Assume it's a file?
