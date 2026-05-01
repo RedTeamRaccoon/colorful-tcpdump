@@ -1122,15 +1122,25 @@ def prettify_tcpdump_line_so_it_looks_nice( line):
     if args.wrap:
         print( line)
     else:
-        terminal_size = os.get_terminal_size()
+        # os.get_terminal_size() raises OSError when stdout isn't a TTY
+        # (file redirection, pipe to less/head, etc.). Fall back to the
+        # COLUMNS env var, then to "don't cut" (same effect as --wrap).
+        try:
+            terminal_size = os.get_terminal_size()
+            cols = terminal_size.columns
+        except OSError:
+            try:
+                cols = int(os.environ.get('COLUMNS', '0')) or None
+            except ValueError:
+                cols = None
         # Print the size
         # of the terminal
         linesize_without_ansi = len( ansi_escape.sub('', line))
-        if terminal_size.columns < linesize_without_ansi:
+        if cols is not None and cols < linesize_without_ansi:
             # print('CUT')
             # Assume there's no ansi sequences in the latter part of the string
             # yes this may be a gamble but usually it should work
-            cut_line = line[:-(linesize_without_ansi - terminal_size.columns +1 )] + '>'
+            cut_line = line[:-(linesize_without_ansi - cols +1 )] + '>'
             print( cut_line)
         else:
             print( line)
