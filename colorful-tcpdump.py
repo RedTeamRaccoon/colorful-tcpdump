@@ -365,11 +365,78 @@ nice_colors_num = len( nice_colors)
 
 #print( nice_colors)
 
+
+# Nerd Font glyphs prepended to known IP-range descriptors. Requires a
+# Nerd-Font-patched terminal font. Codepoints are Font Awesome / Material
+# via Nerd Fonts v3. Anything not in this map renders as plain text — safe
+# fallback for unknown descriptors.
+provider_glyphs = {
+    'CF':      '',  # Cloudflare
+    'TOR':     '',  # user-secret (closest semantic for onion routing)
+    'AWS':     '',  # Amazon
+    'MSFT':    '',  # Windows
+    'GITHUB':  '',  # GitHub
+    'GOOG':    '',  # Google
+    'GCLOUD':  '',  # Google (cloud variant — same logo)
+    'MULLVAD': '',  # shield (VPN)
+    'FASTLY':  '',  # cloud (CDN)
+    'OVH':     '',  # server
+    'ONEWEB':  '',  # satellite-dish
+    'SPACEX':  '',  # rocket (Starlink)
+    'MOZILLA': '',  # Firefox
+    'AKAMAI':  '',  # cloud (CDN)
+    'CENSYS':  '',  # magnifier (scanner)
+    'AZ-DE':   '',  # microsoft-azure
+    'AZ-GOV':  '',
+    'AZ-CN':   '',
+    'AZ-PUB':  '',
+    'RFC1918': '',  # home (LAN)
+    'MCAST':   '',  # wifi (multicast / broadcast group)
+}
+
+def glyph_prefix(descr):
+    """Return 'glyph descr' for known providers, else descr unchanged."""
+    g = provider_glyphs.get(descr)
+    return f'{g} {descr}' if g else descr
+
+# Well-known port -> Nerd Font glyph. Suffixed onto the port number inside
+# colorize_match_ip_port so the glyph inherits the port's color span.
+port_glyphs = {
+    '22':  '',   # SSH      (nf-fa-terminal)
+    '53':  '',   # DNS      (nf-fa-search)
+    '80':  '',   # HTTP     (nf-fa-globe)
+    '443': '',   # HTTPS    (nf-fa-lock)
+}
+
+# Raw protocol tokens -> Nerd Font glyphs. Applied as a final pass at the
+# end of prettify_tcpdump_line_so_it_looks_nice so all earlier regex
+# matching sees the original tokens.
+protocol_glyph_patterns = [
+    (re.compile(r'(: UDP,)'),               ' \\1'),    # UDP   (nf-fa-bolt)
+    (re.compile(r'(: ICMP6\b)'),           ' \\1'),    # ICMPv6 (precedes ICMP)
+    (re.compile(r'(: ICMP\b)'),            ' \\1'),    # ICMP   (nf-fa-heartbeat)
+    # ARP: the script rewrites "ARP, Request who-has X tell Y" to
+    # "ARP ((Y)) who-has X" before this pass runs, so we can't anchor on
+    # the comma. Match the bare ARP token preceded by whitespace.
+    (re.compile(r'(?<=\s)(ARP)(?=\s)'),    ' \\1'),    # ARP   (nf-fa-link)
+    (re.compile(r'(Flags \[)'),            ' \\1'),    # TCP   (nf-fa-exchange)
+]
+
+def add_protocol_glyphs(line):
+    if nocolor:
+        return line
+    for pat, repl in protocol_glyph_patterns:
+        line = pat.sub(repl, line)
+    return line
+
 def crc_colorize( s):
     if nocolor:
       return( s)
     else:
-      crc = binascii.crc_hqx( s.encode('ascii'), 0)
+      # utf-8 instead of ascii so Nerd Font glyphs (private-use codepoints)
+      # in s don't crash the hash. ASCII bytes are identical under utf-8,
+      # so existing color assignments for plain strings stay stable.
+      crc = binascii.crc_hqx( s.encode('utf-8'), 0)
       #print( s, crc, crc % nice_colors_num)
       #return( nice_colors[ crc % nice_colors_num] + s + Style.RESET_ALL)
       return( rgb_ansi( nice_colors[ crc % nice_colors_num]) + s + Style.RESET_ALL)
@@ -772,7 +839,7 @@ def get_ip_info( ip):
 
         # if len(moreinfo) > 0:
         for descr in moreinfo.keys():
-            addinfo = crc_colorize( descr)
+            addinfo = crc_colorize( glyph_prefix(descr))
             seen = []
             for i in moreinfo[ descr]:
                 #print( 'i: ', i)
@@ -902,7 +969,10 @@ def colorize_match_ip( matchobj):
 
 def colorize_match_ip_port( matchobj):
     #print ( f'asked to colorize: {matchobj.group(0)}/{matchobj.group(1)}/{matchobj.group(2)}]' )
-    return crc_colorize( matchobj.group(1)) + ':' + crc_colorize( matchobj.group(2)) + get_ip_info(matchobj.group(1))
+    port = matchobj.group(2)
+    g = port_glyphs.get(port)
+    port_token = f'{port} {g}' if g else port
+    return crc_colorize( matchobj.group(1)) + ':' + crc_colorize( port_token) + get_ip_info(matchobj.group(1))
 
 def colorize_matches_within( matchobj):
     s = matchobj.group(0)
@@ -1029,12 +1099,12 @@ def prettify_tcpdump_line_so_it_looks_nice( line):
         if re.search( f' > {add}(:|\.{port})', line):
             #print( "LOCAL on the right found")
             line = re.sub( f'\s({proto})\s(.*) > (.*?):\s', 
-                f' \g<1> {Back.BLACK}{Style.BRIGHT}{Fore.GREEN}>>{Style.RESET_ALL}\g<3> < \g<2>: ', line)
+                f' \g<1> {Back.BLACK}{Style.BRIGHT}{Fore.GREEN}{Style.RESET_ALL}\g<3> < \g<2>: ', line)
         else:
             # Any local ones are now all on the left already
             line = re.sub( 
                 f'\s({add})(:|\.{port}) > ', 
-                f' {Back.BLACK}{Style.BRIGHT}{Fore.GREEN}>>{Style.RESET_ALL}\g<1>\g<2> > ', line)
+                f' {Back.BLACK}{Style.BRIGHT}{Fore.GREEN}{Style.RESET_ALL}\g<1>\g<2> > ', line)
 
     for add in all_broadcasts:
         if re.search( ' > ' + add + f'(:|\.{port})', line):
@@ -1148,6 +1218,7 @@ def prettify_tcpdump_line_so_it_looks_nice( line):
 15:52:18.772556 IP6 fe80::4896:8753:a9ba:662e > fe80::250:56ff:feaa:3c0c: ICMP6, neighbor advertisement, tgt is fe80::4896:8753:a9ba:662e, length 32
     """
 
+    line = add_protocol_glyphs(line)
     line = re.sub( ' > ', Back.BLACK + Style.BRIGHT + Fore.RED  + ' > ' + Style.RESET_ALL, line)
     line = re.sub( ' < ', Back.BLACK + Style.BRIGHT + Fore.BLUE + ' < ' + Style.RESET_ALL, line)
     #print( "nice: ", line)
