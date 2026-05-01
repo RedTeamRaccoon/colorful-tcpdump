@@ -2,6 +2,12 @@
 
 #echo "CTD WRAPPER: script initializing..."
 
+# Suppress upstream SyntaxWarnings (raw-string regex issues throughout
+# colorful-tcpdump.py). These are emitted at compile time on Python 3.12+
+# and flood stderr on every run. Real fix is upstream raw-strings; this
+# silences the noise locally until that lands.
+export PYTHONWARNINGS=ignore::SyntaxWarning
+
 MYDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CTD_OPTS=""
 
