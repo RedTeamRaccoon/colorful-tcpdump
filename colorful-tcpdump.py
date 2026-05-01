@@ -130,10 +130,10 @@ HSVTuple = Tuple[Fraction, Fraction, Fraction]
 RGBTuple = Tuple[float, float, float]
 
 def hue_to_tones(h: Fraction) -> Iterable[HSVTuple]:
-    for s in [Fraction(6,10)]: # optionally use range
-        #for v in [Fraction(8,10),Fraction(5,10)]: # could use range too
-        for v in [Fraction(8,10),Fraction(7,10)]: # could use range too
-            yield (h, s, v) # use bias for v here if you use range
+    # Subdued palette for dark terminals: lower saturation, single value step.
+    for s in [Fraction(45,100)]:
+        for v in [Fraction(78,100)]:
+            yield (h, s, v)
 
 def hsv_to_rgb(x: HSVTuple) -> RGBTuple:
     return colorsys.hsv_to_rgb(*map(float, x))
@@ -163,22 +163,24 @@ def css_colors() -> Iterable[str]:
 
 def rainbowColor( percent_x2):
     # Based on: https://github.com/gnachman/iTerm2/blob/master/tests/24-bit-color.sh
+    # Subdued: scale peaks from 255 down to ~178 so the rainbow is muted, not neon.
+    PEAK = 178
     h = int(percent_x2 / 43)
     f = int(percent_x2 - 43 * h)
-    t = int(f * 255 / 43)
-    q = 255 - t
+    t = int(f * PEAK / 43)
+    q = PEAK - t
     if h == 0:
-        rgb = ( 255, t, 0)
+        rgb = ( PEAK, t, 0)
     if h == 1:
-        rgb = ( q, 255, 0)
+        rgb = ( q, PEAK, 0)
     if h == 2:
-        rgb = ( 0, 255, t)
+        rgb = ( 0, PEAK, t)
     if h == 3:
-        rgb = ( 0, q, 255)
+        rgb = ( 0, q, PEAK)
     if h == 4:
-        rgb = ( t, 0, 255)
+        rgb = ( t, 0, PEAK)
     if h == 5:
-        rgb = ( 255, 0, q)
+        rgb = ( PEAK, 0, q)
     
     tup = list(rgb) + [0]
     if (0.299 * tup[0] + 0.587 * tup[1] + 0.114 * tup[2])/255 > 0.5:
@@ -321,11 +323,42 @@ for r in color24b_rgb_steps:
                 #print( f'rgb: {r},{g},{b}')
 
 
-nice_colors = sample_colors
-for col in list(sample_colors):
-  c = list(col)
-  c[3] = 2
-  nice_colors += [ (c[0], c[1], c[2], c[3]) ]
+# Curated foreground-only palette: each color paints text, never the
+# background. Chosen to harmonize with common dark-terminal themes
+# (One Dark, Tomorrow Night) and Powerlevel10k accent colors.
+# Mode 2 in rgb_ansi() emits the color as foreground and resets bg to default.
+nice_colors = [
+    # xterm-256 cube colors that show up frequently in p10k themes
+    (  0, 175,  95, 2),  # 31  teal
+    (  0, 175, 135, 2),  # 32  turquoise
+    (  0, 215, 175, 2),  # 37  light teal
+    (  0, 215, 215, 2),  # 38  cyan
+    (  0, 215, 255, 2),  # 39  sky
+    ( 95, 135, 135, 2),  # 66  slate
+    ( 95, 135, 175, 2),  # 67  steel
+    ( 95, 135, 215, 2),  # 68  periwinkle
+    ( 95, 175, 135, 2),  # 72  sage
+    ( 95, 175, 215, 2),  # 74  light sky
+    ( 95, 215,   0, 2),  # 76  bright green
+    (135,  95, 255, 2),  # 99  purple
+    (135, 135, 175, 2),  # 103 lavender
+    (135, 175, 215, 2),  # 110 soft blue
+    (135, 215, 255, 2),  # 117 ice blue
+    (175,  95, 215, 2),  # 134 violet
+    (215,  95, 135, 2),  # 168 rose
+    (215, 175, 135, 2),  # 180 tan
+    # Tomorrow-Night ANSI colors (what \e[3Nm renders as in many themes)
+    (181, 189, 104, 2),  # ANSI  2  olive green
+    (240, 198, 116, 2),  # ANSI  3  mellow yellow
+    (129, 162, 190, 2),  # ANSI  4  powder blue
+    (178, 148, 187, 2),  # ANSI  5  lilac
+    (138, 190, 183, 2),  # ANSI  6  mint cyan
+    (185, 202,  74, 2),  # ANSI 10  lime
+    (231, 197,  71, 2),  # ANSI 11  golden
+    (122, 166, 218, 2),  # ANSI 12  cornflower
+    (195, 151, 216, 2),  # ANSI 13  orchid
+    (112, 192, 177, 2),  # ANSI 14  aqua
+]
 
 
 nice_colors_num = len( nice_colors)
