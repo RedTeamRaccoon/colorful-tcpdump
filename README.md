@@ -4,6 +4,35 @@ Welcome to Colorful tcpdump!
 
 ![Colorful Tcpdump logo](ctd-logo-cropped.png)
 
+## About this fork
+
+This is a fork of [ejtaal/colorful-tcpdump](https://github.com/ejtaal/colorful-tcpdump) with the following additions on top of upstream:
+
+**Visual**
+- Subdued, pastel color palette tuned for dark terminals (One Dark / Tomorrow Night). Foreground-only — no more white-text-on-yellow-background hits from CRC-mod indexing.
+- Palette colors drawn from the Powerlevel10k accent set + the Tomorrow-Night ANSI palette, so output blends with common dark-terminal themes instead of competing with them.
+- Rolling-rainbow timestamp dimmed from 100% to ~70% intensity.
+- Nerd Font glyphs for cloud / CDN tags (Cloudflare, AWS, Google, Azure, GitHub, Firefox, Mullvad, Fastly, OVH, Akamai, SpaceX, OneWeb, Tor, Censys), well-known ports (`:22` SSH, `:53` DNS, `:80` HTTP, `:443` HTTPS), raw protocol tokens (UDP, ICMP/ICMP6, ARP, TCP `Flags`), local-host direction marker, and LAN/multicast indicators.
+
+**Robustness**
+- Ctrl+C exits cleanly (no traceback — exit 130 conventionally).
+- `BrokenPipeError` exits cleanly when downstream closes (e.g. `| head`, `| less` then `q`).
+- Non-TTY stdout no longer crashes the line-cutter (file redirection, `tee`, `less -F`, etc.).
+
+**Bug fixes**
+- `RFC1918` and `MCAST` range descriptors now actually load into the radix tree. Previously the loader only iterated the JSON file's keys, so the hardcoded ranges were defined but unreachable at lookup time.
+
+**Wrapper**
+- `ctd` sets `PYTHONWARNINGS=ignore::SyntaxWarning` so the wall of upstream raw-string warnings doesn't appear on every run (Python 3.12+ promoted these from a footnote to noisy stderr output).
+
+### Screenshot
+
+![Enhanced output sample](docs/screenshot.png)
+
+Requires a [Nerd Fonts](https://www.nerdfonts.com/)–patched terminal font (e.g. Hack Nerd Font, FiraCode Nerd Font) for the glyphs to render. Without one, the glyphs fall back to box characters but everything else still works.
+
+---
+
 # What does it do?
 
 This script aims to make tcpdump output even more useful for debugging any and all network related issues, by adding colors and meta data for IPs and connections observed.
